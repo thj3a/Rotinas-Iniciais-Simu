@@ -10,13 +10,7 @@ namespace RotinasIniciais
         static void Main(string[] args)
         {
 
-            double num = 253/255.0;
-            Console.WriteLine(num);
 
-            float num2 = Convert.ToSingle(num);
-            Console.WriteLine(num2);    
-
-            // Ask the user to type the first number.
             Console.WriteLine("oi");
 
             var trainData = FileReaderMNIST.LoadImagesAndLables(
@@ -43,7 +37,6 @@ namespace RotinasIniciais
             float[] resposta8 = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 };
             float[] resposta9 = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
 
-            //int contadorzin = 1;
             foreach (var image in trainData)
             {
 
@@ -87,49 +80,9 @@ namespace RotinasIniciais
                 {
                     net.BackPropagate(byteArrToFloat(image.Image), resposta9);
                 }
-
-
-
-               // contadorzin--;
-                //if(contadorzin == 0)
-                //{
-                //    break;
-                //}
-
-                
             }
 
-            //foreach(var image in data)
-            //{
-
-
-            //if (image.Label == 0)
-            //{
-            //float[] resposta = { 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-            // }
-            // else if (image.Label == 1)
-            // {
-            //    float[] resposta = { 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-            // }
-            // net.BackPropagate( image.Image , resposta );
-            // //net.BackPropagate(new float[] { 1, 0, 0 }, new float[] { 1, 3 });
-            // //net.BackPropagate(new float[] { 0, 1, 0 }, new float[] { 1, 4 });
-            // //net.BackPropagate(new float[] { 0, 0, 1 }, new float[] { 1, 5 });
-            // //net.BackPropagate(new float[] { 1, 1, 0 }, new float[] { 1, 6 });
-            // //net.BackPropagate(new float[] { 0, 1, 1 }, new float[] { 1, 7 });
-            // //net.BackPropagate(new float[] { 1, 0, 1 }, new float[] { 1, 8 });
-            // //net.BackPropagate(new float[] { 1, 1, 1 }, new float[] { 1, 9 });
-            //}
-
-            //System.Threading.Thread.Sleep(4000);
-
-            //Console.WriteLine(net.FeedForward(new float[] { 1 })[0]);
-            //Console.WriteLine(net.FeedForward(new float[] { 2 })[0]);
-            //Console.WriteLine(net.FeedForward(new float[] { 3 })[0]);
-            //Console.WriteLine(net.FeedForward(new float[] { 4 })[0]);
-            //Console.WriteLine(net.FeedForward(new float[] { 5 })[0]);
-            //Console.WriteLine(net.FeedForward(new float[] { 6 })[0]);
-            //Console.WriteLine(net.FeedForward(new float[] { 1 })[0]);
+            
 
             int contador = 0;
             foreach(var image in testData)
@@ -175,12 +128,6 @@ namespace RotinasIniciais
                 }
             }
 
-            //Console.WriteLine(net.FeedForward(byteArrToFloat(testData[0].Image)));
-
-
-
-
-
             Console.Write("Press any key to close the app...");
             Console.ReadKey();
 
@@ -189,6 +136,7 @@ namespace RotinasIniciais
         public static List<List<int>> CreateQTable()
         {
             // Por enquanto a Tabela Q é só uma lista de listas
+            // Apagar depois porque é so fazer um new List[int[]] kkkkkk
             List<List<int>> qTable = new List<List<int>>();
             qTable.Add(new List<int>());
             qTable.Add(new List<int>());

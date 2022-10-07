@@ -23,7 +23,7 @@ namespace RotinasIniciais
 
            
 
-            int[] layers = new int[4] { 784, 16, 16, 10 };
+            int[] layers = new int[4] { 784, 500, 1000, 10 };
             string[] activation = new string[4] { "relu", "relu","relu", "softmax" };
             NeuralNetwork net = new NeuralNetwork(layers, activation);
             float[] resposta0 = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -82,51 +82,83 @@ namespace RotinasIniciais
                 }
             }
 
-            
 
-            int contador = 0;
-            foreach(var image in testData)
+
+            //int contador = 0;
+            //foreach(var image in testData)
+            //{
+            //    if (contador > 1) {
+            //        break;
+            //    }
+            //    contador++;
+            //    float[] arrResposta = net.FeedForward(byteArrToFloat(image.Image));
+
+
+
+            //    Console.WriteLine("Reposta verdadeira: ");
+            //    Console.WriteLine(image.Label);
+
+            //    Console.WriteLine("Reposta da rede: ");
+            //    for (int i = 0; i < 10; i++)
+            //    {
+            //        Console.WriteLine(arrResposta[i]);
+            //    }
+            //}
+
+            //contador = 0;
+            //foreach (var image in trainData)
+            //{
+            //    if (contador > 1)
+            //    {
+            //        break;
+            //    }
+            //    contador++;
+            //    float[] arrResposta = net.FeedForward(byteArrToFloat(image.Image));
+
+            //    Console.WriteLine("Reposta verdadeira: ");
+            //    Console.WriteLine(image.Label);
+
+            //    Console.WriteLine("o tamanho do bag");
+            //    Console.WriteLine(arrResposta.Length);
+
+            //    Console.WriteLine("Reposta da rede: ");
+            //    for (int i = 0; i < 10; i++)
+            //    {
+            //        Console.WriteLine(arrResposta[i]);
+            //    }
+            //}
+
+            int tamTeste = 10000;
+            float acc;
+            float acertos = 0;
+            foreach (var image in testData)
             {
-                if (contador > 1) {
-                    break;
-                }
-                contador++;
                 float[] arrResposta = net.FeedForward(byteArrToFloat(image.Image));
-
-                
-
-                Console.WriteLine("Reposta verdadeira: ");
-                Console.WriteLine(image.Label);
-
-                Console.WriteLine("Reposta da rede: ");
-                for (int i = 0; i < 10; i++)
+                if (arrResposta.ToList().IndexOf(arrResposta.Max()) == image.Label)
                 {
-                    Console.WriteLine(arrResposta[i]);
+                    acertos++;
                 }
+                    
             }
 
-            contador = 0;
+            Console.WriteLine("Acurácia Teste: ");
+            Console.WriteLine(Convert.ToString(acertos/tamTeste));
+
+            int tamTreino = 60000;
+            float accTreino;
+            float acertosTreino = 0;
             foreach (var image in trainData)
             {
-                if (contador > 1)
-                {
-                    break;
-                }
-                contador++;
                 float[] arrResposta = net.FeedForward(byteArrToFloat(image.Image));
-
-                Console.WriteLine("Reposta verdadeira: ");
-                Console.WriteLine(image.Label);
-
-                Console.WriteLine("o tamanho do bag");
-                Console.WriteLine(arrResposta.Length);
-
-                Console.WriteLine("Reposta da rede: ");
-                for (int i = 0; i < 10; i++)
+                if (arrResposta.ToList().IndexOf(arrResposta.Max()) == image.Label)
                 {
-                    Console.WriteLine(arrResposta[i]);
+                    acertosTreino++;
                 }
+
             }
+
+            Console.WriteLine("Acurácia Treino: ");
+            Console.WriteLine(Convert.ToString(acertosTreino/tamTreino));
 
             Console.Write("Press any key to close the app...");
             Console.ReadKey();

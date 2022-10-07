@@ -117,7 +117,6 @@ public class NeuralNetwork //: MonoBehaviour
 
     public float[] FeedForward(float[] inputs)//feed forward, inputs >==> outputs.
     {
-        Console.WriteLine(activations[3]);
         for (int i = 0; i < inputs.Length; i++)
         {
             neurons[0][i] = inputs[i];

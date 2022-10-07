@@ -7,21 +7,21 @@ public class NeuralNetwork //: MonoBehaviour
     //fundamental
     private int[] layers;//layers
 
-    private float[][] neurons;//neurons
-    private float[][] biases;//biasses
-    private float[][][] weights;//weights
+    private double[][] neurons;//neurons
+    private double[][] biases;//biasses
+    private double[][][] weights;//weights
     private int[] activations;//layers
 
     //genetic
-    public float fitness = 0;//fitness
+    public double fitness = 0;//fitness
 
     //backprop
-    public float learningRate = 0.01f;//learning rate
+    public double learningRate = 0.002f;//learning rate
 
-    public float cost = 0;
+    public double cost = 0;
 
-    private float[][] deltaBiases;//biasses
-    private float[][][] deltaWeights;//weights
+    private double[][] deltaBiases;//biasses
+    private double[][][] deltaWeights;//weights
     private int deltaCount;
 
     public Random RNG = new Random();
@@ -71,23 +71,23 @@ public class NeuralNetwork //: MonoBehaviour
 
     private void InitNeurons()//create empty storage array for the neurons in the network.
     {
-        List<float[]> neuronsList = new List<float[]>();
+        List<double[]> neuronsList = new List<double[]>();
         for (int i = 0; i < layers.Length; i++)
         {
-            neuronsList.Add(new float[layers[i]]);
+            neuronsList.Add(new double[layers[i]]);
         }
         neurons = neuronsList.ToArray();
     }
 
     private void InitBiases()//initializes random array for the biases being held within the network.
     {
-        List<float[]> biasList = new List<float[]>();
+        List<double[]> biasList = new List<double[]>();
         for (int i = 0; i < layers.Length; i++)
         {
-            float[] bias = new float[layers[i]];
+            double[] bias = new double[layers[i]];
             for (int j = 0; j < layers[i]; j++)
             {
-                bias[j] = (float)RNG.NextDouble() - 0.5f; ; // UnityEngine.Random.Range(-0.5f, 0.5f);
+                bias[j] = (double)RNG.NextDouble() - 0.5d; ; // UnityEngine.Random.Range(-0.5f, 0.5f);
             }
             biasList.Add(bias);
         }
@@ -96,17 +96,17 @@ public class NeuralNetwork //: MonoBehaviour
 
     private void InitWeights()//initializes random array for the weights being held in the network.
     {
-        List<float[][]> weightsList = new List<float[][]>();
+        List<double[][]> weightsList = new List<double[][]>();
         for (int i = 1; i < layers.Length; i++)
         {
-            List<float[]> layerWeightsList = new List<float[]>();
+            List<double[]> layerWeightsList = new List<double[]>();
             int neuronsInPreviousLayer = layers[i - 1];
             for (int j = 0; j < neurons[i].Length; j++)
             {
-                float[] neuronWeights = new float[neuronsInPreviousLayer];
+                double[] neuronWeights = new double[neuronsInPreviousLayer];
                 for (int k = 0; k < neuronsInPreviousLayer; k++)
                 {
-                    neuronWeights[k] = (float)RNG.NextDouble() - 0.5f; //UnityEngine.Random.Range(-0.5f, 0.5f);
+                    neuronWeights[k] = (double)RNG.NextDouble() - 0.5d; //UnityEngine.Random.Range(-0.5f, 0.5f);
                 }
                 layerWeightsList.Add(neuronWeights);
             }
@@ -115,7 +115,7 @@ public class NeuralNetwork //: MonoBehaviour
         weights = weightsList.ToArray();
     }
 
-    public float[] FeedForward(float[] inputs)//feed forward, inputs >==> outputs.
+    public double[] FeedForward(double[] inputs)//feed forward, inputs >==> outputs.
     {
         for (int i = 0; i < inputs.Length; i++)
         {
@@ -123,17 +123,19 @@ public class NeuralNetwork //: MonoBehaviour
         }
         for (int i = 1; i < layers.Length; i++)
         {
-            float[] valueVec = new float[neurons[i - 1].Length];
-            int layer = i - 1;
+            double[] valueVec = new double[neurons[i].Length];
+            int layer = i;
             for (int j = 0; j < neurons[i].Length; j++)
             {
-                float value = 0f;
+                double value = 0.0;
                 for (int k = 0; k < neurons[i - 1].Length; k++)
                 {
                      value += weights[i - 1][j][k] * neurons[i - 1][k];
                     
                 }
-                if (activations[layer] != 4)
+
+                
+                if (activations[layer - 1] != 4)
                 {
                     neurons[i][j] = activate(value + biases[i][j], layer);
                 }
@@ -141,12 +143,17 @@ public class NeuralNetwork //: MonoBehaviour
                 {
                     valueVec[j] = value;
                 }
-            }
+             }
+
             if(layer != 0)
             {
                 if (activations[layer - 1] == 4)
                 {
-                    neurons[i] = softmax(valueVec);
+                    double[] result = softmax(valueVec);
+                    for (int a=0; a<neurons[i].Length; a++)
+                    {
+                        neurons[i][a] = result[a];
+                    }
                 }
             }
             
@@ -155,7 +162,7 @@ public class NeuralNetwork //: MonoBehaviour
     }
 
     //Backpropagation implemtation down until mutation.
-    public float activate(float value, int layer)//all activation functions
+    public double activate(double value, int layer)//all activation functions
     {
         switch (activations[layer])
         {
@@ -176,12 +183,16 @@ public class NeuralNetwork //: MonoBehaviour
         }
     }
 
-    public float[] softmax(float[] valueVec)
+    public double[] softmax(double[] valueVec)
     {
-        float[] softmax = new float[valueVec.Length];
-        float maxValue = valueVec.Max();
-        float[] x_exp = GetExpArr(GetArrMinus(valueVec, maxValue));
-        float x_exp_sum = x_exp.Sum();
+        double[] softmax = new double[valueVec.Length];
+        double maxValue = valueVec.Average();
+
+        
+
+        double[] x_exp = GetExpArr(GetArrMinus(valueVec, maxValue));
+        double x_exp_sum = x_exp.Sum();
+        
         for (int i = 0; i < softmax.Length; i++)
         {
             softmax[i] = x_exp[i]/x_exp_sum;
@@ -190,7 +201,7 @@ public class NeuralNetwork //: MonoBehaviour
         return softmax;
     }
 
-    public float activateDer(float value, int layer)//all activation function derivatives
+    public double activateDer(double value, int layer)//all activation function derivatives
     {
         switch (activations[layer])
         {
@@ -211,63 +222,63 @@ public class NeuralNetwork //: MonoBehaviour
         }
     }
 
-    public float sigmoid(float x)//activation functions and their corrosponding derivatives
+    public double sigmoid(double x)//activation functions and their corrosponding derivatives
     {
-        float k = (float)Math.Exp(x);
+        double k = (double)Math.Exp(x);
         return k / (1.0f + k);
     }
 
-    public float tanh(float x)
+    public double tanh(double x)
     {
-        return (float)Math.Tanh(x);
+        return (double)Math.Tanh(x);
     }
 
-    public float relu(float x)
+    public double relu(double x)
     {
         return (0 >= x) ? 0 : x;
     }
 
-    public float leakyrelu(float x)
+    public double leakyrelu(double x)
     {
         return (0 >= x) ? 0.01f * x : x;
     }
 
     
 
-    public float sigmoidDer(float x)
+    public double sigmoidDer(double x)
     {
         return x * (1 - x);
     }
 
-    public float tanhDer(float x)
+    public double tanhDer(double x)
     {
         return 1 - (x * x);
     }
 
-    public float reluDer(float x)
+    public double reluDer(double x)
     {
         return (0 >= x) ? 0 : 1;
     }
 
-    public float leakyreluDer(float x)
+    public double leakyreluDer(double x)
     {
         return (0 >= x) ? 0.01f : 1;
     }
 
-    public void BackPropagate(float[] inputs, float[] expected)//backpropogation;
+    public void BackPropagate(double[] inputs, double[] expected)//backpropogation;
     {
-        float[] output = FeedForward(inputs);//runs feed forward to ensure neurons are populated correctly
+        double[] output = FeedForward(inputs);//runs feed forward to ensure neurons are populated correctly
 
         cost = 0;
-        for (int i = 0; i < output.Length; i++) cost += (float)Math.Pow(output[i] - expected[i], 2);//calculated cost of network
+        for (int i = 0; i < output.Length; i++) cost += (double)Math.Pow(output[i] - expected[i], 2);//calculated cost of network
         cost = cost / 2;//this value is not used in calculions, rather used to identify the performance of the network
 
-        float[][] gamma;
+        double[][] gamma;
 
-        List<float[]> gammaList = new List<float[]>();
+        List<double[]> gammaList = new List<double[]>();
         for (int i = 0; i < layers.Length; i++)
         {
-            gammaList.Add(new float[layers[i]]);
+            gammaList.Add(new double[layers[i]]);
         }
         gamma = gammaList.ToArray();//gamma initialization
 
@@ -307,14 +318,14 @@ public class NeuralNetwork //: MonoBehaviour
 
     //Genetic implementations down onwards until save.
 
-    public void Mutate(int high, float val)//used as a simple mutation function for any genetic implementations.
+    public void Mutate(int high, double val)//used as a simple mutation function for any genetic implementations.
     {
         for (int i = 0; i < biases.Length; i++)
         {
             for (int j = 0; j < biases[i].Length; j++)
             {
                 // biases[i][j] = (UnityEngine.Random.Range(0f, high) <= 2) ? biases[i][j] += UnityEngine.Random.Range(-val, val) : biases[i][j];
-                biases[i][j] = (high * (float)RNG.NextDouble()) <= 2 ? biases[i][j] += (val * (2 * ((float)RNG.NextDouble() - 0.5f))) : biases[i][j];
+                biases[i][j] = (high * (double)RNG.NextDouble()) <= 2 ? biases[i][j] += (val * (2 * ((double)RNG.NextDouble() - 0.5f))) : biases[i][j];
             }
         }
 
@@ -325,7 +336,7 @@ public class NeuralNetwork //: MonoBehaviour
                 for (int k = 0; k < weights[i][j].Length; k++)
                 {
                     // weights[i][j][k] = (UnityEngine.Random.Range(0f, high) <= 2) ? weights[i][j][k] += UnityEngine.Random.Range(-val, val) : weights[i][j][k];
-                    weights[i][j][k] = (RNG.NextDouble() * high) <= 2 ? weights[i][j][k] += (val * (2 * ((float)RNG.NextDouble() - 0.5f))) : weights[i][j][k];
+                    weights[i][j][k] = (RNG.NextDouble() * high) <= 2 ? weights[i][j][k] += (val * (2 * ((double)RNG.NextDouble() - 0.5f))) : weights[i][j][k];
                 }
             }
         }
@@ -383,7 +394,7 @@ public class NeuralNetwork //: MonoBehaviour
             {
                 for (int j = 0; j < biases[i].Length; j++)
                 {
-                    biases[i][j] = float.Parse(ListLines[index]);
+                    biases[i][j] = double.Parse(ListLines[index]);
                     index++;
                 }
             }
@@ -394,7 +405,7 @@ public class NeuralNetwork //: MonoBehaviour
                 {
                     for (int k = 0; k < weights[i][j].Length; k++)
                     {
-                        weights[i][j][k] = float.Parse(ListLines[index]); ;
+                        weights[i][j][k] = double.Parse(ListLines[index]); ;
                         index++;
                     }
                 }
@@ -428,21 +439,27 @@ public class NeuralNetwork //: MonoBehaviour
         writer.Close();
     }
 
-    public float[] GetExpArr(float[] arr)
+    public double[] GetExpArr(double[] arr)
     {   
-        float[] expArr = new float[arr.Length];
-        double d;
+        if (double.IsNaN(arr[0])){
+            Console.WriteLine("O BAGULHO ENTROU ERRADOO");
+        }
+        double num;
+        double[] expArr = new double[arr.Length];
         for (int i = 0;i < arr.Length; i++)
         {
-            d = Math.Exp(Convert.ToDouble(arr[i]));
-            expArr[i] = Convert.ToInt32(d);
+            num = Math.Exp(arr[i]);
+
+            
+
+            expArr[i] = num;
         }
         return expArr;
     }
 
-    public float[] GetArrMinus(float[] arr, float num)
+    public double[] GetArrMinus(double[] arr, double num)
     {
-        float[] arrMinusNum = new float[arr.Length];
+        double[] arrMinusNum = new double[arr.Length];
         for (int i = 0; i < arr.Length; i++)
         {
             arrMinusNum[i] = arr[i] - num;

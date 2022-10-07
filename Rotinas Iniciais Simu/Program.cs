@@ -26,20 +26,22 @@ namespace RotinasIniciais
             int[] layers = new int[4] { 784, 32, 64, 10 };
             string[] activation = new string[3] { "relu", "relu", "softmax" };
             NeuralNetwork net = new NeuralNetwork(layers, activation);
-            float[] resposta0 = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            float[] resposta1 = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
-            float[] resposta2 = { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 };
-            float[] resposta3 = { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 };
-            float[] resposta4 = { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 };
-            float[] resposta5 = { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 };
-            float[] resposta6 = { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 };
-            float[] resposta7 = { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 };
-            float[] resposta8 = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 };
-            float[] resposta9 = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
+            double[] resposta0 = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            double[] resposta1 = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
+            double[] resposta2 = { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 };
+            double[] resposta3 = { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 };
+            double[] resposta4 = { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 };
+            double[] resposta5 = { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 };
+            double[] resposta6 = { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 };
+            double[] resposta7 = { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 };
+            double[] resposta8 = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 };
+            double[] resposta9 = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
 
+            int contadorz = 0;
             foreach (var image in trainData)
             {
-
+                Console.WriteLine(contadorz);
+                contadorz++;
                 if (image.Label == 0)
                 {
                     net.BackPropagate(byteArrToFloat(image.Image), resposta0);
@@ -84,61 +86,60 @@ namespace RotinasIniciais
 
 
 
-            //int contador = 0;
-            //foreach(var image in testData)
-            //{
-            //    if (contador > 1) {
-            //        break;
-            //    }
-            //    contador++;
-            //    float[] arrResposta = net.FeedForward(byteArrToFloat(image.Image));
+            int contador = 0;
+            foreach (var image in testData)
+            {
+                if (contador > 1)
+                {
+                    break;
+                }
+                contador++;
+                double[] arrResposta = net.FeedForward(byteArrToFloat(image.Image));
+
+                
+
+                Console.WriteLine("Reposta verdadeira: ");
+                Console.WriteLine(image.Label);
+
+                Console.WriteLine("Reposta da rede: ");
+                for (int i = 0; i < arrResposta.Length; i++)
+                {
+                    Console.WriteLine(arrResposta[i]);
+                }
+            }
+
+            contador = 0;
+            foreach (var image in trainData)
+            {
+                if (contador > 1)
+                {
+                    break;
+                }
+                contador++;
+                double[] arrResposta = net.FeedForward(byteArrToFloat(image.Image));
+
+                Console.WriteLine("Reposta verdadeira: ");
+                Console.WriteLine(image.Label);
 
 
-
-            //    Console.WriteLine("Reposta verdadeira: ");
-            //    Console.WriteLine(image.Label);
-
-            //    Console.WriteLine("Reposta da rede: ");
-            //    for (int i = 0; i < 10; i++)
-            //    {
-            //        Console.WriteLine(arrResposta[i]);
-            //    }
-            //}
-
-            //contador = 0;
-            //foreach (var image in trainData)
-            //{
-            //    if (contador > 1)
-            //    {
-            //        break;
-            //    }
-            //    contador++;
-            //    float[] arrResposta = net.FeedForward(byteArrToFloat(image.Image));
-
-            //    Console.WriteLine("Reposta verdadeira: ");
-            //    Console.WriteLine(image.Label);
-
-            //    Console.WriteLine("o tamanho do bag");
-            //    Console.WriteLine(arrResposta.Length);
-
-            //    Console.WriteLine("Reposta da rede: ");
-            //    for (int i = 0; i < 10; i++)
-            //    {
-            //        Console.WriteLine(arrResposta[i]);
-            //    }
-            //}
+                Console.WriteLine("Reposta da rede: ");
+                for (int i = 0; i < arrResposta.Length; i++)
+                {
+                    Console.WriteLine(arrResposta[i]);
+                }
+            }
 
             int tamTeste = 10000;
             float acc;
             float acertos = 0;
             foreach (var image in testData)
             {
-                float[] arrResposta = net.FeedForward(byteArrToFloat(image.Image));
+                double[] arrResposta = net.FeedForward(byteArrToFloat(image.Image));
                 if (arrResposta.ToList().IndexOf(arrResposta.Max()) == image.Label)
                 {
                     acertos++;
                 }
-                    
+
             }
 
             Console.WriteLine("Acurácia Teste: ");
@@ -149,7 +150,7 @@ namespace RotinasIniciais
             float acertosTreino = 0;
             foreach (var image in trainData)
             {
-                float[] arrResposta = net.FeedForward(byteArrToFloat(image.Image));
+                double[] arrResposta = net.FeedForward(byteArrToFloat(image.Image));
                 if (arrResposta.ToList().IndexOf(arrResposta.Max()) == image.Label)
                 {
                     acertosTreino++;
@@ -179,10 +180,10 @@ namespace RotinasIniciais
 
         
 
-        public static float[] byteArrToFloat(byte[,] byteArr)
+        public static double[] byteArrToFloat(byte[,] byteArr)
         {   
             int indice = 0;
-            float[] imagem = new float[784];
+            double[] imagem = new double[784];
             for (int i = 0; i < 28; i++)
             {
                 for (int j = 0; j < 28; j++)

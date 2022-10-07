@@ -33,8 +33,8 @@ public class NeuralNetwork //: MonoBehaviour
         {
             this.layers[i] = layers[i];
         }
-        activations = new int[layers.Length];
-        for (int i = 1; i < layers.Length; i++)
+        activations = new int[layers.Length - 1];
+        for (int i = 0; i < layers.Length - 1; i++)
         {
             string action = layerActivations[i];
             switch (action)
@@ -142,10 +142,14 @@ public class NeuralNetwork //: MonoBehaviour
                     valueVec[j] = value;
                 }
             }
-            if (activations[layer] == 4)
+            if(layer != 0)
             {
-                neurons[i] = softmax(valueVec);
+                if (activations[layer - 1] == 4)
+                {
+                    neurons[i] = softmax(valueVec);
+                }
             }
+            
         }
         return neurons[neurons.Length - 1];
     }

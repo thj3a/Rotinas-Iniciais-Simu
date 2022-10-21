@@ -16,7 +16,7 @@ public class NeuralNetwork //: MonoBehaviour
     public double fitness = 0;//fitness
 
     //backprop
-    public double learningRate = 0.002f;//learning rate
+    public double learningRate = 0.001f;//learning rate
 
     public double cost = 0;
 

@@ -23,7 +23,7 @@ namespace RotinasIniciais
 
            
 
-            int[] layers = new int[4] { 784, 32, 64, 10 };
+            int[] layers = new int[4] { 784, 85, 170, 10 };
             string[] activation = new string[3] { "relu", "relu", "softmax" };
             NeuralNetwork net = new NeuralNetwork(layers, activation);
             double[] resposta0 = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 };

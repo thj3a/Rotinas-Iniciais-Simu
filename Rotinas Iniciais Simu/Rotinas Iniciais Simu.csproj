@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Accord.DataSets" Version="3.8.0" />
+    <PackageReference Include="DequeNET" Version="1.0.2" />
     <PackageReference Include="MNIST.IO" Version="1.0.1" />
   </ItemGroup>
 

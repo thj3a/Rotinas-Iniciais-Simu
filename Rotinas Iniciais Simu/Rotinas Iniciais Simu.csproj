@@ -9,13 +9,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Accord.DataSets" Version="3.8.0" />
     <PackageReference Include="DequeNET" Version="1.0.2" />
     <PackageReference Include="Keras.NET" Version="3.8.5" />
-    <PackageReference Include="MNIST.IO" Version="1.0.1" />
     <PackageReference Include="SciSharp.TensorFlow.Redist" Version="2.7.0" />
     <PackageReference Include="TensorFlow.Keras" Version="0.7.0" />
     <PackageReference Include="TensorFlow.NET" Version="0.70.1" />
+    <PackageReference Include="TorchSharp" Version="0.98.1" />
+    <PackageReference Include="TorchSharp-cuda-windows" Version="0.98.1" />
   </ItemGroup>
 
 </Project>

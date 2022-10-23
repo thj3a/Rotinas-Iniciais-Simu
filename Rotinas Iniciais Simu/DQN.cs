@@ -13,10 +13,10 @@ using Tensorflow.Keras.Models;
 using Tensorflow.NumPy;
 using static Tensorflow.Binding;
 using static Tensorflow.KerasApi;
+using TorchSharp;
 
 namespace RotinasIniciais
 {
-
 
   public class DQN
   {
@@ -33,7 +33,7 @@ namespace RotinasIniciais
     private int fit_count;
     private List<object> nodes_queue;
     private int memory_size;
-    private Deque<(List<int>, int, float, List<int>, bool)> memory;
+    private Deque<(NDArray, int, float, NDArray, bool)> memory;
     Random rnd = new Random();
     private Sequential model;
     
@@ -52,10 +52,10 @@ namespace RotinasIniciais
       this.loss_history = new ();
       this.fit_count = 0;
       this.nodes_queue = new ();
-      this.model = CreateModel(2, 24, n_inputs, n_actions);
+      this.model = CreateModel_Keras(2, 24, n_inputs, n_actions);
 
     }
-    public virtual int get_action(List<int> state, bool should_explore = true)
+    public virtual int get_action(NDArray state, bool should_explore = true)
     {
       int action = -1;
       if (should_explore)
@@ -66,50 +66,74 @@ namespace RotinasIniciais
           return rnd.Next(2);
       }
 
-      var q_values = model.predict(np.array(state.ToArray(), TF_DataType.TF_FLOAT).reshape(new Shape(1, 2)))[0].numpy()[0];
+      var q_values = model.predict(state)[0].numpy()[0];
       var best_action = np.argmax(q_values);
       action = best_action[0];
       return action;
     }
-    public virtual (List<int>, int, bool) step(List<int> state, int action)
+    public virtual (NDArray, int, bool) step(NDArray state, int action)
     {
-      List<int> next_state = new List<int>(state);
+      NDArray next_state;
+      var _state = new List<float>();
+      var _next_state = new List<float>();
+      var done = false;
+
+      
+      foreach (var i in state.ToMultiDimArray<float>())
+      {
+        _state.Add((float)i);
+        _next_state.Add((float)i);
+      }
 
       if (action == 0)
       {
-        next_state[0] -= 1;
+        _next_state[0] -= 1;
         //Console.WriteLine("andei pra esquerda");
       }
       else
       {
-        next_state[0] += 1;
+        _next_state[0] += 1;
         //Console.WriteLine("andei pra direita");
       }
-      var done = false;
-      if (next_state[0] == 0 || next_state[0] == 3)
+      
+      if (_next_state[0] == 0 || _next_state[0] == 3)
       {
         done = true;
         //Console.WriteLine("caiu no fogo ou ganhou");
-
       }
-      if (next_state[1] == 1 && next_state[0] == 1)
+      if (_next_state[1] == 1 && _next_state[0] == 1)
       {
-        next_state[1] = 0;
+        _next_state[1] = 0;
         //Console.WriteLine("diamante parou de existir");
       }
+
+      
+      next_state = np.array(new float[,] { { _next_state[0], _next_state[1] } });
+
       return (next_state, calc_reward(state, next_state, done), done);
     }
-    public virtual int calc_reward(List<int> state, List<int> next_state, bool done)
+    public virtual int calc_reward(NDArray state, NDArray next_state, bool done)
     {
-      if (next_state[0] == 0)
+      var _state = new List<float>();
+      var _next_state = new List<float>();
+      foreach (var i in state.ToMultiDimArray<float>())
+      {
+        _state.Add((float)i);
+      }
+      foreach (var i in next_state.ToMultiDimArray<float>())
+      {
+        _next_state.Add((float)i);
+      }
+
+      if (_next_state[0] == 0)
       {
         return -10;
       }
-      else if (next_state[0] == 3)
+      else if (_next_state[0] == 3)
       {
         return 10;
       }
-      else if (state[1] == 1 && next_state[0] == 1)
+      else if (_state[1] == 1 && _next_state[0] == 1)
       {
         return 3;
       }
@@ -118,19 +142,15 @@ namespace RotinasIniciais
         return 0;
       }
     }
-    public virtual (List<int>, bool) reset_env()
+    public virtual (NDArray, bool) reset_env()
     {
       var done = false;
-      List<int> state = new List<int>();
-      state.Add(2);
-      state.Add(1);
-      state[0] = 2;
-      state[1] = 1;
+      NDArray state = np.array(new int[,] { { 2, 1 } }, TF_DataType.TF_FLOAT);
 
       return (state, done);
 
     }
-    public void remember(List<int> state, int action, float reward, List<int> next_state, bool done)
+    public void remember(NDArray state, int action, float reward, NDArray next_state, bool done)
     {
       this.memory.PushRight((state, action, reward, next_state, done));
     }
@@ -139,22 +159,21 @@ namespace RotinasIniciais
       if (this.memory.Count < this.batch_size) return;
 
       var samples = this.memory.OrderBy(x => rnd.Next()).Take(batch_size);
-
-      foreach ((List<int> state, int action, float reward, List<int> next_state, bool done) in samples)
+      
+      foreach ((NDArray state, int action, float reward, NDArray next_state, bool done) in samples)
       {
-        var target = this.model.predict(np.array(state.ToArray(), TF_DataType.TF_FLOAT).reshape(new Shape(1, 2)))[0].numpy()[0];
+        var target = this.model.predict(state)[0].numpy()[0];
         if (done) target[0][action] = reward;
         else
         {
-          var Q_future = np.argmax(this.model.predict(np.array(next_state.ToArray(), TF_DataType.TF_FLOAT).reshape(new Shape(1, 2)))[0].numpy()[0]);
+          var Q_future = np.argmax(this.model.predict(next_state)[0].numpy()[0]);
           target[0][action] = reward + Q_future * this.gamma;
         }
-        var np_state = np.array(state.ToArray(), TF_DataType.TF_FLOAT).reshape(new Shape(1, 2));
-        model.fit(np_state, target, verbose: 0);
+        model.fit(state, target, verbose: 0);
       }
 
     }
-    static Sequential CreateModel(int layers, int neurons, int input_size, int output_size)
+    static Sequential CreateModel_Keras(int layers, int neurons, int input_size, int output_size)
     {
       // Prepare layers
       var list_layers = new List<ILayer>();
@@ -171,6 +190,8 @@ namespace RotinasIniciais
       model.summary();
       return model;
     }
+
+    
   }
 }
 

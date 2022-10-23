@@ -1,7 +1,10 @@
-﻿// See https://aka.ms/new-console-template for more information
-using Accord.Math;
-using MNIST.IO;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Diagnostics;
+using Tensorflow.NumPy;
+using Tensorflow;
+using TorchSharp;
+using static TorchSharp.torch.nn;
+using System.Collections;
 
 namespace RotinasIniciais
 {
@@ -9,12 +12,44 @@ namespace RotinasIniciais
   {
     static void Main(string[] args)
     {
+      //var a = np.array(new int[,] { { 1, 2 }, { 5, 6 } });
+      //var b = np.array(new int[,] { { 3, 4 }, { 7, 8 } });
+      //a = np.concatenate(new NDArray[] { a, b });
+
+      
+
+
+      //// Torch
+
+      //var lin1 = Linear(1000, 100);
+      //var lin2 = Linear(100, 10);
+      //var seq = Sequential(("lin1", lin1), ("relu1", ReLU()), ("drop1", Dropout(0.1)), ("lin2", lin2));
+
+      //var x = torch.randn(64, 1000);
+      //var y = torch.randn(64, 10);
+
+      //var optimizer = torch.optim.Adam(seq.parameters());
+
+      //for (int i = 0; i < 10_000; i++)
+      //{
+      //  var eval = seq.forward(x);
+      //  var output = functional.mse_loss(eval, y, torch.nn.Reduction.Sum);
+
+      //  optimizer.zero_grad();
+
+      //  output.backward();
+
+      //  optimizer.step();
+      //}
+
+      //// End Torch
+
       int episodes = 1000;
       List<int> rewards = new();
       
       var dqn = new DQN(Convert.ToInt32(5 * Math.Pow(10, 5)), 32, 0.99, 1.0, 0.01, 0.999, 0.005, 0.125, 2, 2);
-      (List<int> state, bool done) = dqn.reset_env();
-      List<int> next_state = new(state);
+      (NDArray state, bool done) = dqn.reset_env();
+      NDArray next_state = state;
       int reward = 0;
       int action = -1;
 
@@ -29,7 +64,7 @@ namespace RotinasIniciais
           dqn.remember(state, action, reward, next_state, done);
           if (ep % 32 == 0)
             dqn.replay();
-          state = next_state.Select(x=>x).ToList();
+          state = next_state;
           r.Add(reward);
         }
         rewards.Add(r.Sum());

@@ -4,7 +4,12 @@ using Tensorflow.NumPy;
 using Tensorflow;
 using TorchSharp;
 using static TorchSharp.torch.nn;
+using static TorchSharp.TensorExtensionMethods;
 using System.Collections;
+using System.Linq;
+using TorchSharp.Modules;
+using System.Runtime.InteropServices;
+using Tensorflow.Keras.Layers;
 
 namespace RotinasIniciais
 {
@@ -16,38 +21,94 @@ namespace RotinasIniciais
       //var b = np.array(new int[,] { { 3, 4 }, { 7, 8 } });
       //a = np.concatenate(new NDArray[] { a, b });
 
-      
 
 
-      //// Torch
+
+      // Torch
 
       //var lin1 = Linear(1000, 100);
       //var lin2 = Linear(100, 10);
       //var seq = Sequential(("lin1", lin1), ("relu1", ReLU()), ("drop1", Dropout(0.1)), ("lin2", lin2));
 
+      int input_size = 2;
+      int output_size = 2;
+      int neurons = 128;
+      int layers = 5;
+      
+      var model = Sequential();
+      model.append(Linear(input_size, neurons));
+      for (int i = 0; i < layers; i++)
+      {
+        model.append(Linear(neurons, neurons));
+        model.append(ReLU());
+      }
+      model.append(Linear(neurons, output_size));
+      model.parameters();
+
+      var seq = model;
+      
       //var x = torch.randn(64, 1000);
       //var y = torch.randn(64, 10);
 
-      //var optimizer = torch.optim.Adam(seq.parameters());
+      //x.print();
+      //Console.WriteLine(x[0][0].item<float>());
+      //x[0][0].print();
 
-      //for (int i = 0; i < 10_000; i++)
-      //{
-      //  var eval = seq.forward(x);
-      //  var output = functional.mse_loss(eval, y, torch.nn.Reduction.Sum);
+      int size = 100;
+      float[,] _x = new float[size, 2];
+      for (int i = 0; i < size; i++)
+      {
+        for (int j = 0; j < 2; j++)
+        {
+          _x[i, j] = i+1;
+        }
+      }
+      var x = torch.tensor(_x);
+      x.print();
 
-      //  optimizer.zero_grad();
 
-      //  output.backward();
+      float[,] _y = new float[size, 2];
+      for (int i = 0; i < size; i++)
+      {
+        for (int j = 0; j < 2; j++)
+        {
+          _y[i, j] = (float)Math.Pow(i+1,j+1);
+        }
+      }
 
-      //  optimizer.step();
-      //}
+      var y = torch.tensor(_y);
+      y.print();
 
-      //// End Torch
+      var optimizer = torch.optim.Adam(seq.parameters());
+
+      for (int i = 0; i < 100; i++)
+      {
+        var eval = seq.forward(x);
+        //eval.print();
+
+        var output = functional.mse_loss(eval, y, torch.nn.Reduction.Sum);
+        Console.WriteLine($"iter {i}");
+        output.print();
+
+        optimizer.zero_grad();
+
+        output.backward();
+
+        optimizer.step();
+      }
+
+      var rnd = new Random();
+      var t = rnd.Next(size);
+      var test = torch.tensor(new float[,] { {t, t} });
+      test.print();
+      var _test = seq.forward(test);
+      _test.print();
+      // End Torch
 
       int episodes = 1000;
       List<int> rewards = new();
       
-      var dqn = new DQN(Convert.ToInt32(5 * Math.Pow(10, 5)), 32, 0.99, 1.0, 0.01, 0.999, 0.005, 0.125, 2, 2);
+      var dqn = new DQN_Keras(Convert.ToInt32(5 * Math.Pow(10, 5)), 32, 0.99, 1.0, 0.01, 0.999, 0.005, 0.125, 2, 2);
       (NDArray state, bool done) = dqn.reset_env();
       NDArray next_state = state;
       int reward = 0;

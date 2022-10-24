@@ -18,7 +18,7 @@ using TorchSharp;
 namespace RotinasIniciais
 {
 
-  public class DQN
+  public class DQN_Keras
   {
     private int batch_size;
     private double gamma;
@@ -38,7 +38,7 @@ namespace RotinasIniciais
     private Sequential model;
     
 
-    public DQN( int memory_size, int batch_size, double gamma,  double exploration_max, double exploration_min, double exploration_decay, double learning_rate, double tau, int n_actions, int n_inputs)
+    public DQN_Keras( int memory_size, int batch_size, double gamma,  double exploration_max, double exploration_min, double exploration_decay, double learning_rate, double tau, int n_actions, int n_inputs)
     {
       this.memory = new ();
       memory.Capacity = memory_size;

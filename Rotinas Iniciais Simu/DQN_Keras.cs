@@ -18,7 +18,7 @@ using TorchSharp;
 namespace RotinasIniciais
 {
 
-  public class DQN_Keras
+  public class dqn_keras
   {
     private int batch_size;
     private double gamma;
@@ -38,7 +38,7 @@ namespace RotinasIniciais
     private Sequential model;
     
 
-    public DQN_Keras( int memory_size, int batch_size, double gamma,  double exploration_max, double exploration_min, double exploration_decay, double learning_rate, double tau, int n_actions, int n_inputs)
+    public dqn_keras( int memory_size, int batch_size, double gamma,  double exploration_max, double exploration_min, double exploration_decay, double learning_rate, double tau, int n_actions, int n_inputs)
     {
       this.memory = new ();
       memory.Capacity = memory_size;
@@ -52,7 +52,7 @@ namespace RotinasIniciais
       this.loss_history = new ();
       this.fit_count = 0;
       this.nodes_queue = new ();
-      this.model = CreateModel_Keras(2, 24, n_inputs, n_actions);
+      this.model = create_model_keras(2, 24, n_inputs, n_actions);
 
     }
     public virtual int get_action(NDArray state, bool should_explore = true)
@@ -173,7 +173,7 @@ namespace RotinasIniciais
       }
 
     }
-    static Sequential CreateModel_Keras(int layers, int neurons, int input_size, int output_size)
+    static Sequential create_model_keras(int layers, int neurons, int input_size, int output_size)
     {
       // Prepare layers
       var list_layers = new List<ILayer>();
@@ -191,7 +191,33 @@ namespace RotinasIniciais
       return model;
     }
 
-    
+    public void run(int episodes=1000)
+    {
+      List<int> rewards = new();
+      (NDArray state, bool done) = this.reset_env();
+      NDArray next_state = state;
+      int reward = 0;
+      int action = -1;
+
+      for (int ep = 0; ep < episodes; ep++)
+      {
+        (state, done) = this.reset_env();
+        List<int> r = new();
+        while (!done)
+        {
+          action = this.get_action(state);
+          (next_state, reward, done) = this.step(state, action);
+          this.remember(state, action, reward, next_state, done);
+          if (ep % 32 == 0)
+            this.replay();
+          state = next_state;
+          r.Add(reward);
+        }
+        rewards.Add(r.Sum());
+        // Console.WriteLine($"Next state: [{String.Join(",", state)}], Reward: {reward}, Done?: {done}");
+        Console.WriteLine($"Episode {ep}, Reward: {rewards[ep]}");
+      }
+    }
   }
 }
 

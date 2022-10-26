@@ -1,6 +1,7 @@
 ﻿using DequeNet;
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -74,17 +75,10 @@ namespace RotinasIniciais
     public virtual (NDArray, int, bool) step(NDArray state, int action)
     {
       NDArray next_state;
-      var _state = new List<float>();
-      var _next_state = new List<float>();
+      var _state = state.ToArray<float>();
+      var _next_state = state.ToArray<float>();
       var done = false;
-
-      
-      foreach (var i in state.ToMultiDimArray<float>())
-      {
-        _state.Add((float)i);
-        _next_state.Add((float)i);
-      }
-
+    
       if (action == 0)
       {
         _next_state[0] -= 1;
@@ -107,23 +101,14 @@ namespace RotinasIniciais
         //Console.WriteLine("diamante parou de existir");
       }
 
-      
       next_state = np.array(new float[,] { { _next_state[0], _next_state[1] } });
-
-      return (next_state, calc_reward(state, next_state, done), done);
+      int reward = calc_reward(state, next_state, done);
+      return (next_state, reward, done);
     }
     public virtual int calc_reward(NDArray state, NDArray next_state, bool done)
     {
-      var _state = new List<float>();
-      var _next_state = new List<float>();
-      foreach (var i in state.ToMultiDimArray<float>())
-      {
-        _state.Add((float)i);
-      }
-      foreach (var i in next_state.ToMultiDimArray<float>())
-      {
-        _next_state.Add((float)i);
-      }
+      var _state = state.ToArray<float>();
+      var _next_state = next_state.ToArray<float>();
 
       if (_next_state[0] == 0)
       {
@@ -166,12 +151,11 @@ namespace RotinasIniciais
         if (done) target[0][action] = reward;
         else
         {
-          var Q_future = np.argmax(this.model.predict(next_state)[0].numpy()[0]);
+          var Q_future = np.amax(this.model.predict(next_state)[0].numpy()[0]);
           target[0][action] = reward + Q_future * this.gamma;
         }
         model.fit(state, target, verbose: 0);
       }
-
     }
     static Sequential create_model_keras(int layers, int neurons, int input_size, int output_size)
     {
@@ -179,7 +163,7 @@ namespace RotinasIniciais
       var list_layers = new List<ILayer>();
       list_layers.Add(keras.layers.Dense(neurons, keras.activations.Relu, input_shape: new Shape(input_size)));
       for (int i = 0; i < layers; i++) list_layers.Add(keras.layers.Dense(64, keras.activations.Relu));
-      list_layers.Add(keras.layers.Dense(output_size, keras.activations.Softmax));
+      list_layers.Add(keras.layers.Dense(output_size, keras.activations.Linear));
 
       //Build sequential model
       var model = keras.Sequential(layers: list_layers);
@@ -193,7 +177,7 @@ namespace RotinasIniciais
 
     public void run(int episodes=1000)
     {
-      List<int> rewards = new();
+      List<long> rewards = new();
       (NDArray state, bool done) = this.reset_env();
       NDArray next_state = state;
       int reward = 0;

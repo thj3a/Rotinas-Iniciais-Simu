@@ -23,10 +23,11 @@ using System.Collections;
 using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Python.Runtime;
 
 Random rnd = new();
 int memory_size = Convert.ToInt32(5 * Math.Pow(10, 5));
-int batch_size = 100;
+int batch_size = 32;
 float gamma = 0.99f;
 float exploration_max = 1.0f;
 float exploration_min = 0.01f;
@@ -77,36 +78,68 @@ for (int ep = 0; ep < episodes; ep++)
     if (!(memory.size < batch_size+100))
     {
       List<(Tensor state, int action, float reward, Tensor next_state, bool done)> samples = memory.sample(batch_size);
-      Tensor states = torch.cat(samples.Select(x => x.state.clone()).ToList());
-      Tensor next_states = torch.cat(samples.Select(x => x.next_state.clone()).ToList());
-      Tensor actions = torch.tensor(samples.Select(x => (long)x.action).ToList());
-      Tensor rewards = torch.tensor(samples.Select(x => x.reward).ToList());
-      Tensor dones = torch.tensor(samples.Select(x => x.done).ToList());
 
-      Tensor expected = torch.zeros(new long[] { batch_size, 2 });
-      Tensor pred = aux.forward(states);
-      for (int i = 0; i < batch_size; i++)
+      List<Tensor> Qs_current = new();
+      List<Tensor> Qs_expected = new();
+      foreach (var sample in samples)
       {
+        var stateT = tensor(new float[,] { { sample.state[0][0].item<float>(), sample.state[0][1].item<float>() } }, dtype: ScalarType.Float32, device: torch.CPU);
+        var next_stateT = tensor(new float[,] { { sample.next_state[0][0].item<float>(), sample.next_state[0][1].item<float>() } }, dtype: ScalarType.Float32, device: torch.CPU);
+        var actionT = tensor(new float[] { sample.action }, dtype: ScalarType.Float32, device: torch.CPU);
+        var rewardT = tensor(new float[] { sample.reward }, dtype: ScalarType.Float32, device: torch.CPU);
+        var doneT = tensor(new float[] { sample.done ? 1.0f : 0.0f }, dtype: ScalarType.Float32, device: torch.CPU);
+        var done_float = sample.done ? 1.0f : 0.0f;
+        var Q_future = aux.forward(stateT).max().item<float>();
+        var Q_Expected = aux.forward(stateT);
+        Q_Expected[0][sample.action] = sample.reward + ((gamma * Q_future) * (1 - done_float));
+        var Q_current = seq.forward(stateT);
 
-        if (dones[i].item<bool>())
-        {
-          expected[i] = pred[i];
-          expected[i][actions[i]] = rewards[i];
-        }
-        else
-        {
-          expected[i] = pred[i];
-          var q_future = aux.forward(next_states[i]).max().item<float>();
-          expected[i][actions[i]] = rewards[i] + (gamma * q_future);
-        }
+        Qs_current.Add(Q_current);
+        Qs_expected.Add(Q_Expected);
       }
+      //stateT.print(); actionT.print(); rewardT.print(); doneT.print();
+      //Q_Expected.print(); Q_current.print();
 
-      using var loss = loss_func.forward(seq.forward(states), expected);
-      l.Add(loss.item<float>());
+      var Q_currentT = torch.cat(Qs_current);
+      var Q_expectedT = torch.cat(Qs_expected);
 
-      seq.zero_grad();
-      loss.backward();
-      optimizer.step();
+        var loss = functional.mse_loss(Q_currentT, Q_expectedT, Reduction.Sum);
+        optimizer.zero_grad();
+        loss.backward();
+        optimizer.step();
+        l.Add(loss.item<float>());
+      
+
+      //Tensor states = torch.cat(samples.Select(x => x.state).ToList());
+      //Tensor next_states = torch.cat(samples.Select(x => x.next_state.clone()).ToList());
+      //Tensor actions = torch.tensor(samples.Select(x => (long)x.action).ToList());
+      //Tensor rewards = torch.tensor(samples.Select(x => x.reward).ToList());
+      //Tensor dones = torch.tensor(samples.Select(x => x.done).ToList());
+
+      //Tensor expected = torch.zeros(new long[] { batch_size, 2 });
+      //Tensor pred = aux.forward(states);
+      //for (int i = 0; i < batch_size; i++)
+      //{
+
+      //  if (dones[i].item<bool>())
+      //  {
+      //    expected[i] = pred[i];
+      //    expected[i][actions[i]] = rewards[i];
+      //  }
+      //  else
+      //  {
+      //    expected[i] = pred[i];
+      //    var q_future = aux.forward(next_states[i]).max().item<float>();
+      //    expected[i][actions[i]] = rewards[i] + (gamma * q_future);
+      //  }
+      //}
+
+      //using var loss = loss_func.forward(seq.forward(states), expected);
+      //l.Add(loss.item<float>());
+
+      //seq.zero_grad();
+      //loss.backward();
+      //optimizer.step();
 
       //pred.print();
       //expected.print();

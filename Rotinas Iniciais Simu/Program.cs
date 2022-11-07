@@ -7,6 +7,7 @@
 //using Tensorflow.NumPy;
 //using static Tensorflow.Binding;
 //using static Tensorflow.KerasApi;
+//using Keras.Models;
 
 using TorchSharp;
 using static TorchSharp.torch.nn;
@@ -22,175 +23,418 @@ using System.Collections;
 using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Keras.Models;
 
-namespace RotinasIniciais
+Random rnd = new();
+int memory_size = Convert.ToInt32(5 * Math.Pow(10, 5));
+int batch_size = 32;
+float gamma = 0.99f;
+float exploration_max = 1.0f;
+float exploration_min = 0.01f;
+float exploration_decay = 0.995f;
+float learning_rate = 0.005f;
+float tau = 0.125f;
+int n_outputs = 2;
+int n_inputs = 2;
+int layers = 2;
+int neurons = 24;
+int episodes = 1_000;
+var device = torch.cuda.is_available() ? torch.device("CUDA") : torch.device("cpu");
+
+dqn_torch model = new dqn_torch(batch_size, gamma, exploration_max, exploration_min, exploration_decay, learning_rate, tau, n_outputs, n_inputs, layers, neurons, "model", device);
+
+dqn_torch aux_model = new dqn_torch(batch_size, gamma, exploration_max, exploration_min, exploration_decay, learning_rate, tau, n_outputs, n_inputs, layers, neurons, "aux_model", device);
+
+var lin1 = Linear(n_inputs, neurons);
+var lin2 = Linear(neurons, neurons);
+var lin3 = Linear(neurons, n_outputs);
+
+var seq = Sequential(("lin1", lin1), ("relu1", ReLU()), ("lin2", lin2), ("relu2", ReLU()), ("lin3", lin3));
+var loss_func = MSELoss(Reduction.Sum);
+
+Adam optimizer = new(model.parameters(), learning_rate);
+
+simple_env env = new simple_env();
+replay_memory memory = new replay_memory(memory_size);
+
+List<int> list_rewards = new();
+List<float> list_losses = new();
+(Tensor state, bool done) = env.reset();
+Tensor next_state = state.clone();
+int reward = 0;
+int action = -1;
+
+for (int ep = 0; ep < episodes; ep++)
 {
-  class Program
+  (state, done) = env.reset();
+  List<int> r = new();
+  List<float> l = new();
+  while (!done)
   {
-    static void Main(string[] args)
+    action = get_action(state.clone(), seq, rnd);
+    (next_state, reward, done) = env.step(state.clone(), action);
+    memory.remember(state.clone(), action, reward, next_state.clone(), done);
+
+    if (!(memory.size < batch_size))
     {
-      int memory_size = Convert.ToInt32(5 * Math.Pow(10, 5));
-      int batch_size = 32;
-      float gamma = 0.99f;
-      float exploration_max = 1.0f;
-      float exploration_min = 0.01f;
-      float exploration_decay = 0.995f;
-      float learning_rate = 0.005f;
-      float tau = 0.125f;
-      int n_outputs = 2;
-      int n_inputs = 2;
-      int layers = 2;
-      int neurons = 24;
-      int episodes = 1_000;
-      var device = torch.cuda.is_available() ? torch.device("CUDA") : torch.device("cpu");
-
-      var model = new dqn_torch(batch_size,
-                                    gamma,
-                                    exploration_max,
-                                    exploration_min,
-                                    exploration_decay,
-                                    learning_rate,
-                                    tau,
-                                    n_outputs,
-                                    n_inputs,
-                                    layers,
-                                    neurons,
-                                    "model",
-                                    device);
-      var aux_model = new dqn_torch(batch_size,
-                                    gamma,
-                                    exploration_max,
-                                    exploration_min,
-                                    exploration_decay,
-                                    learning_rate,
-                                    tau,
-                                    n_outputs,
-                                    n_inputs,
-                                    layers,
-                                    neurons,
-                                    "aux_model",
-                                    device);
-
-      Adam optimizer = new(model.parameters(), learning_rate);
-      
-      simple_env env = new simple_env();
-      replay_memory memory = new replay_memory(memory_size);
-      
-      List<int> rewards = new();
-      List<float> losses = new();
-      (Tensor state, bool done) = env.reset();
-      Tensor next_state = state.clone();
-      int reward = 0;
-      int action = -1;
-
-      for (int ep = 0; ep < episodes; ep++)
-      {
-        (state, done) = env.reset();
-        List<int> r = new();
-        List<float> l = new();
-        while (!done)
-        {
-          action = model.get_action(state.clone());
-          (next_state, reward, done) = env.step(state.clone(), action);
-          memory.remember(state.clone(), action, reward, next_state.clone(), done);
-          //if (ep % 32 == 0)
-          l.Add(replay(memory, model, aux_model, optimizer));
-          state = next_state.clone();
-          r.Add(reward);
-        }
-        rewards.Add(r.Sum());
-        losses.Add(torch.mean(torch.tensor(l)).item<float>());
-        //Console.Write("Rewards in ep.: ");
-        //Console.WriteLine();
-        //Console.Write("Losses in ep.:");
-        //l.ForEach(x => Console.Write($"{x.ToString()}..."));
-        // Console.WriteLine($"Next state: [{String.Join(",", state)}], Reward: {reward}, Done?: {done}");
-        //Console.WriteLine();
-        Console.WriteLine($" --- Episode {ep}, Ep. Reward: {rewards[ep]}, Ep. Loss: {losses[ep]}, Exploration: {model.exploration_max}");
-      }
-
-    }
-    public static float replay(replay_memory memory, dqn_torch model, Module<Tensor, Tensor> aux_model, optim.Optimizer optimizer)
-    {
-
-      //for (int i=0; i < this.batch_size; i++)
-      //{
-      //  samples.Add(memory[rnd.Next(memory_size)]);
-      //}
-
-      // -=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=- APPROACH 1
-      //foreach ((var state, var action, var reward, var next_state, var done) in samples)
-      //{
-      //  var y_hat = model.forward(state);
-      //  var y = model.forward(state);
-      //  if (done)
-      //  {
-      //    y[0][action] = reward;
-      //  }
-      //  else
-      //  {
-      //    var Q_next = model.forward(next_state);
-      //    var Q_next_max = torch.max(Q_next);
-
-      //    y[0][action] = torch.tensor(reward) + (this.gamma * Q_next_max);
-      //    // Q_next.print(); Q_next_max.print();
-      //  }
-      //  var criterion = torch.nn.MSELoss(Reduction.Sum);
-      //  var output = criterion.forward(y_hat, y).to(device);
-      //  model.zero_grad();
-      //  output.backward();
-      //  optimizer.step();
-      //  //output.print(); y.print(); y_hat.print();
-      //  loss.Add(output.item<float>());
-      //}
-      //return torch.mean(torch.tensor(loss.ToArray())).item<float>();
-
-      // -=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=- APPROACH 2
-
-      if (memory.size < model.batch_size) return -1f;
       List<(Tensor state, int action, float reward, Tensor next_state, bool done)> samples = memory.sample();
-      var loss = new List<float>();
-      var _states = new float[32, 2];
-      var _targets = new float[32, 2];
+      Tensor states = torch.cat(samples.Select(x => x.state.clone()).ToList());
+      Tensor next_states = torch.cat(samples.Select(x => x.next_state.clone()).ToList());
+      Tensor actions = torch.tensor(samples.Select(x => (long)x.action).ToList());
+      Tensor rewards = torch.tensor(samples.Select(x => x.reward).ToList());
+      Tensor dones = torch.tensor(samples.Select(x => x.done).ToList());
 
-      var _states_ = torch.cat(samples.Select(x => x.state).ToList());
-      
-      for (int i = 0, max = samples.Count(); i < max; i++)
+      Tensor expected = torch.zeros(new long[] {32,2});
+      Tensor pred = seq.forward(states);
+      using (torch.no_grad())
       {
-        _states[i, 0] = samples[i].state[0][0].item<float>();
-        _states[i, 1] = samples[i].state[0][1].item<float>();
-      }
-      var states = torch.tensor(_states);
-      Tensor targets;
-
-        targets = aux_model.forward(states);
-
-        for (int i = 0, imax = samples.Count(); i < imax; i++)
+        for (int i = 0; i < batch_size; i++)
         {
-          if (samples[i].done)
+          if (dones[i].item<bool>())
           {
-            targets[i][samples[i].action] = samples[i].reward;
+            expected[i] = pred[i];
+            expected[i][actions[i]] = rewards[i];
           }
           else
           {
-            var next_state_q_values = aux_model.forward(samples[i].next_state);
-            var next_state_q_value = torch.max(next_state_q_values, 1).values.item<float>();
-            targets[i][samples[i].action] = samples[i].reward + (model.gamma * next_state_q_value);
+            expected[i] = pred[i];
+            expected[i][actions[i]] = rewards[i] + gamma * seq.forward(next_states[i]).max().item<float>();
           }
         }
-      model.train();
-      using (var d = torch.NewDisposeScope())
-      {
-        optimizer.zero_grad();
-        var prediction = model.forward(states);
-        var output = mse_loss(prediction, targets);
-        output.print();
-        output.backward();
-        optimizer.step();
-        return output.item<float>();
       }
+      pred.print();
+      expected.print();
+      var loss = loss_func.forward(pred, expected);
+      loss.print();
+      seq.zero_grad();
+      loss.backward();
+      optimizer.step();
+      loss = loss_func.forward(pred, expected);
+      loss.print();
+      
     }
 
+    state = next_state.clone();
+    r.Add(reward);
+  }
+  list_rewards.Add(r.Sum());
+  list_losses.Add(torch.mean(torch.tensor(l)).item<float>());
+  //Console.Write("Rewards in ep.: ");
+  //Console.WriteLine();
+  //Console.Write("Losses in ep.:");
+  //l.ForEach(x => Console.Write($"{x.ToString()}..."));
+  // Console.WriteLine($"Next state: [{String.Join(",", state)}], Reward: {reward}, Done?: {done}");
+  //Console.WriteLine();
+  Console.WriteLine($" --- Episode {ep}, Ep. Reward: {list_rewards[ep]}, Ep. Loss: {list_losses[ep]}, Exploration: {model.exploration_max}");
+}
+
+float replay(replay_memory memory, dqn_torch model, Module<Tensor, Tensor> aux_model, optim.Optimizer optimizer)
+{
+
+  //for (int i=0; i < this.batch_size; i++)
+  //{
+  //  samples.Add(memory[rnd.Next(memory_size)]);
+  //}
+
+  // -=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=- APPROACH 1
+  //foreach ((var state, var action, var reward, var next_state, var done) in samples)
+  //{
+  //  var y_hat = model.forward(state);
+  //  var y = model.forward(state);
+  //  if (done)
+  //  {
+  //    y[0][action] = reward;
+  //  }
+  //  else
+  //  {
+  //    var Q_next = model.forward(next_state);
+  //    var Q_next_max = torch.max(Q_next);
+
+  //    y[0][action] = torch.tensor(reward) + (this.gamma * Q_next_max);
+  //    // Q_next.print(); Q_next_max.print();
+  //  }
+  //  var criterion = torch.nn.MSELoss(Reduction.Sum);
+  //  var output = criterion.forward(y_hat, y).to(device);
+  //  model.zero_grad();
+  //  output.backward();
+  //  optimizer.step();
+  //  //output.print(); y.print(); y_hat.print();
+  //  loss.Add(output.item<float>());
+  //}
+  //return torch.mean(torch.tensor(loss.ToArray())).item<float>();
+
+  // -=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=- APPROACH 2
+
+  if (memory.size < model.batch_size) return -1f;
+  
+  var loss = new List<float>();
+  var _states = new float[32, 2];
+  var _targets = new float[32, 2];
+  
+  List<(Tensor state, int action, float reward, Tensor next_state, bool done)> samples = memory.sample();
+  var _states_ = torch.cat(samples.Select(x => x.state.clone()).ToList());
+
+  for (int i = 0, max = samples.Count(); i < max; i++)
+  {
+    _states[i, 0] = samples[i].state[0][0].item<float>();
+    _states[i, 1] = samples[i].state[0][1].item<float>();
+  }
+  var states = torch.tensor(_states);
+
+  
+  Tensor targets;
+
+  targets = aux_model.forward(states);
+
+  for (int i = 0, imax = samples.Count(); i < imax; i++)
+  {
+    if (samples[i].done)
+    {
+      targets[i][samples[i].action] = samples[i].reward;
+    }
+    else
+    {
+      var next_state_q_values = aux_model.forward(samples[i].next_state);
+      var next_state_q_value = torch.max(next_state_q_values, 1).values.item<float>();
+      targets[i][samples[i].action] = samples[i].reward + (model.gamma * next_state_q_value);
+    }
+  }
+  model.train();
+  using (var d = torch.NewDisposeScope())
+  {
+    optimizer.zero_grad();
+    var prediction = model.forward(states);
+    var output = mse_loss(prediction, targets);
+    output.print();
+    output.backward();
+    optimizer.step();
+    return output.item<float>();
   }
 }
+
+int get_action(Tensor state, Sequential nnet, Random rnd, bool should_explore = true)
+{
+  int action = -1;
+  Tensor q_values;
+  if (should_explore)
+  {
+    exploration_max *= exploration_decay;
+    exploration_max = Math.Max(exploration_min, exploration_max);
+    if (torch.rand(1).item<float>() < exploration_max)
+      return rnd.Next(2);
+  }
+  using (torch.no_grad())
+  {
+    q_values = nnet.forward(state)[0];
+  }
+  var best_action = torch.argmax(q_values);
+
+  action = (int)best_action.item<long>();
+  return action;
+}
+public class dqn_torch : Module<Tensor, Tensor>
+{
+  public int batch_size;
+  public float gamma;
+  public float exploration_max;
+  public float exploration_min;
+  public float exploration_decay;
+  public float learning_rate;
+  public float tau;
+  public int n_actions;
+  public int n_inputs;
+  public int layers;
+  public int neurons;
+
+  public Random rnd = new Random();
+  public Module<Tensor, Tensor> lin1 = Linear(2, 24);
+  public Module<Tensor, Tensor> lin2 = Linear(24, 24);
+  public Module<Tensor, Tensor> lin3 = Linear(24, 2);
+  public Module<Tensor, Tensor> relu1 = ReLU();
+  public Module<Tensor, Tensor> relu2 = ReLU();
+  public Module<Tensor, Tensor> relu3 = ReLU();
+
+  public dqn_torch(int batch_size,
+                   float gamma,
+                   float exploration_max,
+                   float exploration_min,
+                   float exploration_decay,
+                   float learning_rate,
+                   float tau,
+                   int n_outputs,
+                   int n_inputs,
+                   int layers,
+                   int neurons,
+                   string name,
+                   torch.Device device = null) : base(name)
+  {
+    RegisterComponents();
+
+    if (device != null && device.type == DeviceType.CUDA)
+      this.to(device);
+
+    this.batch_size = batch_size;
+    this.gamma = gamma;
+    this.exploration_max = exploration_max;
+    this.exploration_min = exploration_min;
+    this.exploration_decay = exploration_decay;
+    this.learning_rate = learning_rate;
+    this.tau = tau;
+    this.n_inputs = n_inputs;
+    this.n_actions = n_outputs;
+    this.neurons = neurons;
+    this.layers = layers;
+  }
+
+  public int get_action(Tensor state, bool should_explore = true)
+  {
+    int action = -1;
+    Tensor q_values;
+    if (should_explore)
+    {
+      exploration_max *= exploration_decay;
+      exploration_max = Math.Max(exploration_min, exploration_max);
+      if (this.rnd.NextDouble() < exploration_max)
+        return rnd.Next(2);
+    }
+    using (torch.no_grad())
+    {
+      q_values = this.forward(state)[0];
+    }
+    var best_action = torch.argmax(q_values);
+
+    action = (int)best_action.item<long>();
+    return action;
+  }
+
+  public override Tensor forward(Tensor input)
+  {
+    var l1y1 = lin1.forward(input);
+    var l1y2 = relu1.forward(l1y1);
+    var l2y1 = lin2.forward(l1y2);
+    var l2y2 = relu2.forward(l2y1);
+    var y = lin3.forward(l2y2);
+
+    return y;
+  }
+}
+
+public class simple_env
+{
+  public int calc_reward(Tensor state, Tensor next_state, bool done)
+  {
+    var _state = new List<float>();
+    var _next_state = new List<float>();
+    for (long i = 0, imax = state.size()[0] + 1; i < imax; i++)
+    {
+      _state.Add(state[0][i].item<float>());
+    }
+    for (long i = 0, imax = next_state.size()[0]; i < imax; i++)
+    {
+      _next_state.Add(next_state[0][i].item<float>());
+    }
+
+    if (_next_state[0] == 0)
+    {
+      return -10;
+    }
+    else if (_next_state[0] == 3)
+    {
+      return 10;
+    }
+    else if (_state[1] == 1 && _next_state[0] == 1)
+    {
+      return 3;
+    }
+    else
+    {
+      return 0;
+    }
+  }
+
+  public (Tensor, bool) reset()
+  {
+    var done = false;
+    Tensor state = torch.tensor(new float[,] { { 2, 1 } });
+
+    return (state, done);
+
+  }
+
+  public (Tensor, int, bool) step(Tensor state, int action)
+  {
+    Tensor next_state;
+    var _state = new List<float>();
+    var _next_state = new List<float>();
+    var done = false;
+
+    for (long i = 0, imax = state.size()[0] + 1; i < imax; i++)
+    {
+      _state.Add(state[0][i].item<float>());
+      _next_state.Add((float)state[0][i].item<float>());
+    }
+
+    if (action == 0)
+    {
+      _next_state[0] -= 1;
+      //Console.WriteLine("andei pra esquerda");
+    }
+    else
+    {
+      _next_state[0] += 1;
+      //Console.WriteLine("andei pra direita");
+    }
+
+    if (_next_state[0] == 0 || _next_state[0] == 3)
+    {
+      done = true;
+      //Console.WriteLine("caiu no fogo ou ganhou");
+    }
+    if (_next_state[1] == 1 && _next_state[0] == 1)
+    {
+      _next_state[1] = 0;
+      //Console.WriteLine("diamante parou de existir");
+    }
+    next_state = torch.tensor(new float[,] { { _next_state[0], _next_state[1] } });
+    int reward = calc_reward(state, next_state, done);
+
+    //state.print();
+    //next_state.print();
+    //Console.WriteLine($"action: {action}, reward: {reward}");
+    //Console.WriteLine("-=--=--=--=--=--=--=--=-");
+
+    return (next_state, reward, done);
+  }
+
+}
+
+public class replay_memory
+{
+  public List<(Tensor state, int action, float reward, Tensor next_state, bool done)> memory;
+  public Random rnd;
+  public replay_memory(int capacity = 2000)
+  {
+    // For now, capacity is not working... Improve this later.
+    memory = new();
+    rnd = new();
+  }
+  public void remember(Tensor state, int action, float reward, Tensor next_state, bool done)
+  {
+    this.memory.Add((state, action, reward, next_state, done));
+  }
+
+  public List<(Tensor, int, float, Tensor, bool)> sample(int batch_size = 32)
+  {
+    List<(Tensor state, int action, float reward, Tensor next_state, bool done)> selected = this.memory.Select(x => x).OrderBy(x => rnd.Next()).Take(batch_size).ToList();
+    return selected;
+  }
+
+  public int size
+  {
+    get
+    {
+      return this.memory.Count;
+    }
+  }
+}
+
+
